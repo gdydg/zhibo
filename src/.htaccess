@@ -1,0 +1,3 @@
+RewriteEngine On
+RewriteRule ^korazone\.m3u$ serve.php?file=korazone [L]
+RewriteRule ^74live\.m3u$ serve.php?file=74live [L]
