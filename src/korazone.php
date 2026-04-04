@@ -9,6 +9,8 @@ date_default_timezone_set('Asia/Shanghai');
 $targetUrl = 'https://korazone.tv/';
 $outputFile = __DIR__ . '/data/korazone.m3u'; 
 $cacheFile = __DIR__ . '/data/translation_cache.json';
+$stateFile = __DIR__ . '/data/korazone_state.json';
+$timeWindow = 5 * 3600;
 
 echo "开始抓取数据...\n";
 
@@ -60,6 +62,7 @@ if (empty($rawStreams)) die("没有找到任何有效的 m3u8 直播源。\n");
 $now = time(); 
 $validStreams = [];
 $uniqueUrls = [];
+$currentStreamsByUrl = [];
 
 $translationCache = file_exists($cacheFile) ? json_decode(file_get_contents($cacheFile), true) : [];
 if (!is_array($translationCache)) $translationCache = [];
@@ -72,7 +75,7 @@ foreach ($rawStreams as $stream) {
     $matchTime = strtotime($streamDate);
     if (!$matchTime) $matchTime = $now; 
 
-    if (($now - $matchTime) > 14400) continue; 
+    if (abs($now - $matchTime) > $timeWindow) continue;
 
     $uniqueUrls[] = $stream->streamUrl;
     $group = ($matchTime <= $now) ? 'korazone-比赛中' : 'korazone-待开赛';
@@ -86,17 +89,45 @@ foreach ($rawStreams as $stream) {
 
     $channelName = "{$translatedHome} vs {$translatedAway} ({$formattedTime})";
 
-    $validStreams[] = [
+    $streamItem = [
         'diff'  => $timeDiff,
+        'match_time' => $matchTime,
         'group' => $group,
         'name'  => $channelName,
         'url'   => $stream->streamUrl
     ];
+    $validStreams[] = $streamItem;
+    $currentStreamsByUrl[$stream->streamUrl] = $streamItem;
 }
 
 if ($cacheUpdated) {
     file_put_contents($cacheFile, json_encode($translationCache, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
 }
+
+$savedState = file_exists($stateFile) ? json_decode(file_get_contents($stateFile), true) : [];
+if (!is_array($savedState)) $savedState = [];
+
+foreach ($savedState as $url => $savedItem) {
+    if (!is_array($savedItem) || isset($currentStreamsByUrl[$url])) continue;
+    $savedMatchTime = isset($savedItem['match_time']) ? intval($savedItem['match_time']) : 0;
+    if ($savedMatchTime <= 0 || abs($now - $savedMatchTime) > $timeWindow) continue;
+
+    $savedItem['diff'] = abs($now - $savedMatchTime);
+    $validStreams[] = $savedItem;
+}
+
+$nextState = [];
+foreach ($validStreams as $item) {
+    if (!isset($item['url'])) continue;
+    $nextState[$item['url']] = [
+        'match_time' => isset($item['match_time']) ? intval($item['match_time']) : 0,
+        'group' => isset($item['group']) ? $item['group'] : 'korazone-比赛中',
+        'name' => isset($item['name']) ? $item['name'] : '未知比赛',
+        'url' => $item['url']
+    ];
+}
+
+file_put_contents($stateFile, json_encode($nextState, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
 
 usort($validStreams, function($a, $b) {
     return $a['diff'] <=> $b['diff'];
