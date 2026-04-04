@@ -119,11 +119,19 @@ foreach ($matches as $match) {
         $live_url = "{$BASE_URL}/live/{$match_id}";
         $live_html = fetch_url($live_url, $BASE_URL);
         
-        preg_match('/nz-g-c\s*=\s*["\']([^"\']+)["\']/i', $live_html, $m_nz);
+        // 提取 iframe 上的全局密钥
         preg_match('/data-secrt\s*=\s*["\']([^"\']+)["\']/i', $live_html, $m_sec);
-        preg_match('/zr-cg-t\s*=\s*["\']([^"\']+)["\']/i', $live_html, $m_frm);
-        preg_match('/zr-zfr-y\s*=\s*["\']([^"\']+)["\']/i', $live_html, $m_wf);
-        preg_match('/zfr-c-at\s*=\s*["\']([^"\']+)["\']/i', $live_html, $m_yr);
+        
+        // 精准定位原生源（cg-bf-zfr="0"）的 <dd> 标签块，忽略外部跳转链接
+        if (preg_match('/<dd[^>]*?cg-bf-zfr\s*=\s*["\']0["\'][^>]*>(.*?)<\/dd>/is', $live_html, $m_dd)) {
+            $dd_html = $m_dd[0];
+            preg_match('/nz-g-c\s*=\s*["\']([^"\']+)["\']/i', $dd_html, $m_nz);
+            preg_match('/zr-cg-t\s*=\s*["\']([^"\']+)["\']/i', $dd_html, $m_frm);
+            preg_match('/zr-zfr-y\s*=\s*["\']([^"\']+)["\']/i', $dd_html, $m_wf);
+            preg_match('/zfr-c-at\s*=\s*["\']([^"\']+)["\']/i', $dd_html, $m_yr);
+        } else {
+            $m_nz = [];
+        }
 
         if (!empty($m_nz)) {
             $src = $m_nz[1];
