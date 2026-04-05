@@ -66,7 +66,10 @@ foreach ($matchNodes as $node) {
     $league = $leagueNodes->length > 0 ? trim($leagueNodes->item(0)->textContent) : "未知赛事";
     $home = $homeNodes->length > 0 ? trim($homeNodes->item(0)->textContent) : "未知主队";
     $away = $awayNodes->length > 0 ? trim($awayNodes->item(0)->textContent) : "未知客队";
-    $matchTitle = "[{$dateStr}] {$league} : {$home} VS {$away}";
+    
+    // 提取时分，并取消拼接时的所有空格
+    $timeStr = date('H:i', $matchTime);
+    $matchTitle = "[{$timeStr}]{$league}:{$home}VS{$away}";
 
     $detailHtml = http_get($detailUrl);
     if (!$detailHtml) continue;
@@ -81,7 +84,9 @@ foreach ($matchNodes as $node) {
     if (empty($m3u8Url) || strpos($m3u8Url, 'm3u8') === false) continue;
 
     $m3u8Url = str_replace('&amp;', '&', $m3u8Url);
-    $m3uOutput .= "#EXTINF:-1 tvg-name=\"{$home} VS {$away}\" group-title=\"其他比赛\", {$matchTitle}\n";
+    
+    // 将 tvg-name 里的空格也一并去除了，保持统一
+    $m3uOutput .= "#EXTINF:-1 tvg-name=\"{$home}VS{$away}\" group-title=\"其他比赛\", {$matchTitle}\n";
     $m3uOutput .= "{$m3u8Url}\n";
     $matchCount++;
 }
