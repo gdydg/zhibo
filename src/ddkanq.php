@@ -8,7 +8,6 @@ date_default_timezone_set('Asia/Shanghai');
 
 $baseUrl = "https://ddkanq.com";
 $outputFile = __DIR__ . '/data/ddkanq.m3u';
-$maxMatches = 10;
 
 function log_msg($msg) {
     echo $msg . "\n";
@@ -47,8 +46,6 @@ $m3uOutput = "#EXTM3U\n";
 $matchCount = 0;
 
 foreach ($matchNodes as $node) {
-    if ($matchCount >= $maxMatches) break;
-
     $dateStr = $node->getAttribute('data-rowdate');
     if (empty($dateStr)) continue;
 
@@ -94,4 +91,3 @@ if (file_put_contents($outputFile, $m3uOutput) !== false) {
 } else {
     log_msg("DDKANQ: 写入失败。");
 }
-
