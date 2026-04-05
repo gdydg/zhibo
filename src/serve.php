@@ -1,8 +1,8 @@
 <?php
 $file = $_GET['file'] ?? '';
 
-// 安全限制：仅允许读取这俩文件
-if (!in_array($file, ['korazone', '74live'])) {
+// 安全限制：仅允许读取白名单文件
+if (!in_array($file, ['korazone', '74live', 'ddkanq'])) {
     header("HTTP/1.1 403 Forbidden");
     die("Forbidden");
 }
