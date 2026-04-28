@@ -13,4 +13,4 @@ RUN mkdir -p /var/www/html/data \
     && chown -R www-data:www-data /var/www/html/data \
     && chmod -R 777 /var/www/html/data
 
-EXPOSE 801
+EXPOSE 80
