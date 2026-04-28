@@ -1,4 +1,8 @@
 RewriteEngine On
-RewriteRule ^korazone\.m3u$ serve.php?file=korazone [L]
-RewriteRule ^74live\.m3u$ serve.php?file=74live [L]
-RewriteRule ^ddkanq\.m3u$ serve.php?file=ddkanq [L]
+
+# 触发抓取任务
+RewriteRule ^trigger$ trigger.php [L,QSA,NC]
+
+# 统一处理 m3u/txt 输出，交给 serve.php 做白名单校验
+RewriteRule ^([A-Za-z0-9_-]+)\.m3u$ serve.php?file=$1&format=m3u [L,QSA,NC]
+RewriteRule ^([A-Za-z0-9_-]+)\.txt$ serve.php?file=$1&format=txt [L,QSA,NC]
