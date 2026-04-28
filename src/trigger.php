@@ -12,6 +12,7 @@ if ($token !== $my_secret_token) {
 exec("php " . __DIR__ . "/korazone.php > /dev/null 2>&1 &");
 exec("php " . __DIR__ . "/74live.php > /dev/null 2>&1 &");
 exec("php " . __DIR__ . "/ddkanq.php > /dev/null 2>&1 &");
+exec("php " . __DIR__ . "/sportplus.php > /dev/null 2>&1 &");
 
 header('Content-Type: application/json');
 echo json_encode([
