@@ -1,6 +1,6 @@
 <?php
 /**
- * DDKANQ 体育直播抓取脚本 (Docker 后台 CLI 版) - 极速优化版
+ * DDKANQ 体育直播抓取脚本 (Docker 后台 CLI 版) - 正则极速版
  */
 
 date_default_timezone_set('Asia/Shanghai');
@@ -34,70 +34,60 @@ function http_get($url) {
 log_msg("DDKANQ: 开始极速抓取...");
 
 $currentTime = time();
-$startTime = $currentTime - (4 * 3600); // 抓取过去 4 小时
-$endTime = $currentTime + (30 * 60);    // 抓取未来 30 分钟
+// 恢复为原定的时间范围
+$startTime = $currentTime - (4 * 3600); // 抓取过去 4 小时内开赛的
+$endTime = $currentTime + (30 * 60);    // 抓取未来 30 分钟内开赛的
 
 $html = http_get($baseUrl);
 if (!$html) {
     die("DDKANQ: 无法获取主页数据。\n");
 }
 
-$dom = new DOMDocument();
-// 抑制 HTML 不规范导致的警告
-@$dom->loadHTML(mb_convert_encoding($html, 'HTML-ENTITIES', 'UTF-8'));
-$xpath = new DOMXPath($dom);
-$matchNodes = $xpath->query("//a[contains(@class, 'match-link')]");
+// 弃用 DOMDocument，改用字符串分割，完美兼容不规范的 HTML
+$blocks = explode('class="col-12 match-link', $html);
+array_shift($blocks); // 丢弃第一段不相关的顶部源码
 
 $m3uOutput = "#EXTM3U\n";
 $matchCount = 0;
 
-foreach ($matchNodes as $node) {
-    $dateStr = $node->getAttribute('data-rowdate');
-    if (empty($dateStr)) continue;
-
+foreach ($blocks as $block) {
+    // 1. 提取比赛时间
+    if (!preg_match('/data-rowdate="([^"]+)"/', $block, $matches)) continue;
+    $dateStr = trim($matches[1]);
     $matchTime = strtotime($dateStr);
     if (!$matchTime) continue;
 
     // 时间过滤
     if ($matchTime < $startTime || $matchTime > $endTime) continue;
 
-    $leagueNodes = $xpath->query(".//div[contains(@class, 'match-type')]", $node);
-    $homeNodes = $xpath->query(".//span[@class='left-team']", $node);
-    $awayNodes = $xpath->query(".//span[@class='right-team']", $node);
-
-    $league = $leagueNodes->length > 0 ? trim($leagueNodes->item(0)->textContent) : "未知赛事";
-    $home = $homeNodes->length > 0 ? trim($homeNodes->item(0)->textContent) : "未知主队";
-    $away = $awayNodes->length > 0 ? trim($awayNodes->item(0)->textContent) : "未知客队";
+    // 2. 提取赛事名称、主队、客队
+    $league = preg_match('/class="match-type[^"]*">(.*?)<\/div>/s', $block, $m) ? trim(strip_tags($m[1])) : "未知赛事";
+    $home = preg_match('/class="left-team[^"]*">(.*?)<\/span>/s', $block, $m) ? trim(strip_tags($m[1])) : "未知主队";
+    $away = preg_match('/class="right-team[^"]*">(.*?)<\/span>/s', $block, $m) ? trim(strip_tags($m[1])) : "未知客队";
     
     $timeStr = date('H:i', $matchTime);
     $matchTitle = "[{$timeStr}]{$league}:{$home}VS{$away}";
 
-    // 直接从当前赛事的 DOM 节点下提取 HTML 注释，寻找 m3u8 链接
+    // 3. 直接提取 HTML 注释中的 m3u8 链接
     $m3u8Url = "";
-    $comments = $xpath->query(".//comment()", $node);
-    foreach ($comments as $comment) {
-        $commentText = trim($comment->nodeValue);
-        // 如果注释内容里包含 m3u8 或者以 http 开头，这就是我们要的直播源
-        if (strpos($commentText, '.m3u8') !== false || strpos($commentText, 'http') === 0) {
-            $m3u8Url = $commentText;
-            break;
-        }
+    if (preg_match('/<!--\s*(https?:\/\/[^\s<>]+?\.m3u8[^\s<>]*?)\s*-->/i', $block, $m)) {
+        $m3u8Url = trim($m[1]);
     }
 
-    // 过滤掉提取不到源的比赛
-    if (empty($m3u8Url) || strpos($m3u8Url, 'm3u8') === false) continue;
+    // 如果没提取到有效的 m3u8 链接，跳过
+    if (empty($m3u8Url)) continue;
 
-    // 清理 URL 中可能存在的 HTML 实体编码
+    // 清理 URL 转义字符
     $m3u8Url = str_replace('&amp;', '&', $m3u8Url);
     
-    // 写入 m3u 格式，统一 group-title 为 "其他比赛"
+    // 写入 M3U (统一 group-title)
     $m3uOutput .= "#EXTINF:-1 tvg-name=\"{$home}VS{$away}\" group-title=\"其他比赛\", {$matchTitle}\n";
     $m3uOutput .= "{$m3u8Url}\n";
     $matchCount++;
 }
 
 if (file_put_contents($outputFile, $m3uOutput) !== false) {
-    log_msg("DDKANQ: 抓取完成！成功写入 {$matchCount} 条源到 {$outputFile}");
+    log_msg("DDKANQ: 抓取完成！成功写入 {$matchCount} 条源。");
 } else {
     log_msg("DDKANQ: 写入失败，请检查 data 目录权限。");
 }
