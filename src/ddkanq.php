@@ -6,7 +6,7 @@
 date_default_timezone_set('Asia/Shanghai');
 @set_time_limit(0);
 
-$baseUrl = "https://ddkanq.com";
+$baseUrl = "https://ddkanqiu.cc";
 $outputFile = __DIR__ . '/data/ddkanq.m3u';
 
 function log_msg($msg) {
